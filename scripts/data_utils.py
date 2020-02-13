@@ -3,9 +3,8 @@ from .config import config
 from .maths import *
 import numpy as np
 
-global_x = np.arange(2600)
 
-
+@Deperacated
 def standardize(df, minmax=True):
     if minmax:
         min_val, max_val = df.min(axis=0), df.max(axis=0)
@@ -42,8 +41,9 @@ def trim_df(df, use_bin=True):
 
     train_y = df.iloc[:, -1].apply(encode_name).astype(np.int8).values
     if use_bin:
-        train_x = np.array(
-            [average_bin(global_x, x, num_bins=config.num_bins, normalize=True) for x in train_x])
+        # train_x = np.array(
+        #     [average_bin(global_x, x, num_bins=config.num_bins, normalize=True) for x in train_x])
+        train_x = average_bin_faster(train_x, num_bins=config.num_bins)
     train_x = train_x.reshape(*train_x.shape, 1)
     return train_x, train_y
 
