@@ -16,13 +16,14 @@ def standardize(df, minmax=True):
 
 
 def encode_name(name):
-    try:
-        return config.class_label[name]
-    except:
-        return -1000
+    # try:
+    #     return config.class_label[name]
+    # except:
+    #     return -1000
+    return config.class_label[name]
 
 
-def trim_df(df, use_bin=True):
+def trim_df(df, use_bin=True, remove_begin=True, remove_end=True):
     """
     use_bin:
         if True, use "average_bin" function
@@ -30,7 +31,8 @@ def trim_df(df, use_bin=True):
         train_x: (None, 2600, 1)
         train_y: (2600, )
     """
-
+    num_remove_begin = 100
+    num_remove_end = 50
     # first remove id, id is the last column
     df = df.iloc[:, :-1]
     df = df[df.iloc[:, -1] != "answer"]  # because the data label is wrong
@@ -40,13 +42,18 @@ def trim_df(df, use_bin=True):
     # train_x = standardize(train_x, minmax=False).values
 
     train_y = df.iloc[:, -1].apply(encode_name).astype(np.int8).values
+
+    if remove_begin:
+        train_x = train_x[:, num_remove_begin:-num_remove_end]
+
     if use_bin:
         train_x = average_bin_faster(train_x, num_bins=config.num_bins)
+
     train_x = train_x.reshape(*train_x.shape, 1)
     return train_x, train_y
 
 
-def trim_df_binary(df, target_name, use_bin=True):
+def trim_df_binary(df, target_name, use_bin=True, remove_begin=True, remove_end=True):
     """
     use_bin:
         if True, use "average_bin" function
@@ -65,9 +72,18 @@ def trim_df_binary(df, target_name, use_bin=True):
     # train_x = standardize(train_x, minmax=False).values
 
     train_y = df.iloc[:, -1].apply(encode_name).astype(np.int8).values
+
+    if remove_begin:
+        train_x = train_x[:, num_remove_begin:]
+
+    if remove_end:
+        train_x = train_x[:, :-num_remove_end]
+
     if use_bin:
         train_x = average_bin_faster(train_x, num_bins=config.num_bins)
+
     train_x = train_x.reshape(*train_x.shape, 1)
+
     return train_x, train_y
 
 

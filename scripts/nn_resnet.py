@@ -6,7 +6,7 @@ from keras import regularizers
 from .assessment import calc_f1
 
 
-def identity_block(input_tensor, filters, reduce_dim=False):
+def identity_block(input_tensor, filters, reduce_dim=False, strides=2):
     l2 = 1e-4
     f1, f2, f3 = filters
     x = Conv1D(f1, 1, padding='same', use_bias=0, kernel_initializer='he_normal',
@@ -18,7 +18,7 @@ def identity_block(input_tensor, filters, reduce_dim=False):
         x = Conv1D(f2, 3, padding='same', use_bias=0, kernel_initializer='he_normal',
                    kernel_regularizer=regularizers.l2(l2))(x)
     else:
-        x = Conv1D(f2, 3, padding='same', strides=2, use_bias=0, kernel_initializer='he_normal',
+        x = Conv1D(f2, 3, padding='same', strides=strides, use_bias=0, kernel_initializer='he_normal',
                    kernel_regularizer=regularizers.l2(l2))(x)
 
     x = BatchNormalization()(x)
@@ -30,7 +30,7 @@ def identity_block(input_tensor, filters, reduce_dim=False):
 
     if reduce_dim:
         input_tensor = Conv1D(f3, 1, padding='same', kernel_initializer='he_normal',
-                              strides=2, use_bias=0,
+                              strides=strides, use_bias=0,
                               kernel_regularizer=regularizers.l2(l2))(input_tensor)
         input_tensor = BatchNormalization()(input_tensor)
 
@@ -51,17 +51,19 @@ def resnet(num_class, input_shape=(2600, 1)):
     y = ZeroPadding1D(1)(y)
     y = MaxPool1D(3, padding='valid', strides=2)(y)
 
-    y = identity_block(y, [16, 16, 64], 1)
+    y = identity_block(y, [16, 16, 64], 1, strides=1)
     y = identity_block(y, [16, 16, 64])
     y = identity_block(y, [16, 16, 64])
 
     y = identity_block(y, [32, 32, 128], 1)
     y = identity_block(y, [32, 32, 128])
     y = identity_block(y, [32, 32, 128])
+    y = identity_block(y, [32, 32, 128])
 
     y = identity_block(y, [64, 64, 256], 1)
     y = identity_block(y, [64, 64, 256])
     y = identity_block(y, [64, 64, 256])
+    # y = identity_block(y, [64, 64, 256])
 
     # y = identity_block(y, [128, 128, 512], 1)
     # y = identity_block(y, [128, 128, 512])

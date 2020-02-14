@@ -74,19 +74,34 @@ def average_bin(x, y, num_bins, bin_width=None, normalize=True):
 
 
 def average_bin_faster(y, num_bins):
-    """not finished yet
-    """
-    epsilon = 1e-8
-    total = num_bins * (len(y[0]) // num_bins)
+    num_cols = len(y[0])
+    num_each_bin = num_cols // num_bins
+    total = num_bins * num_each_bin
     y1, y2 = y[:, :total], y[:, total:]
-    y1 = y1.reshape(len(y1), num_bins, len(y[0]) // num_bins)
+    y1 = y1.reshape(len(y1), num_bins, num_each_bin)
 
     y1 = np.mean(y1, axis=-1).reshape(len(y), -1)
-    if total != len(y[0]):
+    if total != num_cols:
         y2 = np.mean(y2, axis=1)
         y1[:, -1] = (y1[:, -1] + y2)/2
-        
+
     # normalize
     y1 -= y1.mean(axis=1)[:, None]
-    y1 /= (np.max(np.abs(y1), axis=1)[:, None] + epsilon)
+    y1 /= (np.max(np.abs(y1), axis=1)[:, None] + 1e-8)
     return y1
+
+
+def change_zero_to_mean(arr2d):
+    arr1d = np.ravel(arr2d)
+    abs_arr1d = np.abs(arr1d)
+    abs_arr2d = abs_arr1d.reshape(*arr2d.shape)
+    effective_mean = np.mean(arr1d[abs_arr1d > 1e-4])
+    arr2d[abs_arr2d <= 1e-4] = effective_mean
+    return arr2d
+
+
+def remove_sharp(arr2d, threshold=0.5e4):
+    std = np.std(arr2d, axis=1)[:, None]
+    diff = (np.abs(arr2d) - std) / (std+1e-8)
+    res = np.where(diff > threshold, -std, diff)
+    return res + std
