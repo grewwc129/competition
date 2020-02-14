@@ -10,7 +10,7 @@ def f1(y_true, y_pred):
             cls_name = config.class_label[cls_name]
         true_labels = (y_true == cls_name)
         pred_labels = (pred_cls == cls_name)
-        TP = np.sum(true_labels == pred_labels)
+        TP = np.sum(true_labels * pred_labels)
         FP = np.sum(true_labels < pred_labels)
         FN = np.sum(true_labels > pred_labels)
         prec = TP / (TP + FP + epsilon)
@@ -26,7 +26,6 @@ def f1(y_true, y_pred):
     f1_qso = f1_helper(y_true, pred_cls, 'qso')
 
     return (f1_star + f1_galaxy+f1_qso)/3
-
 
 
 # has some unknown bug now

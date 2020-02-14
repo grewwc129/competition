@@ -8,6 +8,11 @@ def set_lr(model, lr):
     return model
 
 
+def decay_lr(model, decay_rate=0.9):
+    prev_lr = K.eval(model.optimizer.lr)
+    K.set_value(model.optimizer.lr, prev_lr*decay_rate)
+
+
 def encode_names(names):
     return np.array([config.class_label[name] for name in names])
 

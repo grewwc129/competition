@@ -2,7 +2,7 @@ import numpy as np
 from .management_utils import *
 
 
-@Deperacated
+# @Deperacated
 def median_bin(x, y, num_bins, bin_width=None, normalize=True):
     """
     assume x is sorted 
@@ -37,7 +37,7 @@ def median_bin(x, y, num_bins, bin_width=None, normalize=True):
     return res
 
 
-@Deperacated
+# @Deperacated
 def average_bin(x, y, num_bins, bin_width=None, normalize=True):
     """
     assume x is sorted 
@@ -82,11 +82,10 @@ def average_bin_faster(y, num_bins):
     y1 = y1.reshape(len(y1), num_bins, len(y[0]) // num_bins)
 
     y1 = np.mean(y1, axis=-1).reshape(len(y), -1)
-    if total == len(y[0]):
-        return y1
-
-    y2 = np.mean(y2, axis=1)
-    y1[:, -1] = (y1[:, -1] + y2)/2
+    if total != len(y[0]):
+        y2 = np.mean(y2, axis=1)
+        y1[:, -1] = (y1[:, -1] + y2)/2
+        
     # normalize
     y1 -= y1.mean(axis=1)[:, None]
     y1 /= (np.max(np.abs(y1), axis=1)[:, None] + epsilon)
