@@ -100,8 +100,10 @@ def change_zero_to_mean(arr2d):
     return arr2d
 
 
-def remove_sharp(arr2d, threshold=0.5e4):
+def remove_sharp(arr2d, threshold=5):
     std = np.std(arr2d, axis=1)[:, None]
-    diff = (np.abs(arr2d) - std) / (std+1e-8)
-    res = np.where(diff > threshold, -std, diff)
-    return res + std
+    mean = np.mean(arr2d, axis=1)[:, None]
+    arr2d -= mean
+    diff = np.abs(arr2d)
+    res = np.where(diff > threshold * std, 0, arr2d)
+    return res + mean

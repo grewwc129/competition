@@ -3,6 +3,7 @@ from .config import config
 from .maths import *
 import numpy as np
 
+class_label = config.class_label  # possibly faster
 
 # @Deperacated
 def standardize(df, minmax=True):
@@ -16,20 +17,16 @@ def standardize(df, minmax=True):
 
 
 def encode_name(name):
-    # try:
-    #     return config.class_label[name]
-    # except:
-    #     return -1000
-    return config.class_label[name]
+    return class_label[name]
 
 
-def trim_df(df, use_bin=True, remove_begin=True, remove_end=True):
+def trim_df(df, use_bin=True, remove_endpoints=True, flatten=True):
     """
     use_bin:
         if True, use "average_bin" function
     returns:
-        train_x: (None, 2600, 1)
-        train_y: (2600, )
+        train_x: (None, Dim, 1)
+        train_y: (Dim, )
     """
     num_remove_begin = 100
     num_remove_end = 50
@@ -43,8 +40,12 @@ def trim_df(df, use_bin=True, remove_begin=True, remove_end=True):
 
     train_y = df.iloc[:, -1].apply(encode_name).astype(np.int8).values
 
-    if remove_begin:
+    if remove_endpoints:
         train_x = train_x[:, num_remove_begin:-num_remove_end]
+
+    if flatten:
+        train_x = remove_sharp(train_x)
+        # train_x = change_zero_to_mean(train_x)
 
     if use_bin:
         train_x = average_bin_faster(train_x, num_bins=config.num_bins)
