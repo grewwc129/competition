@@ -38,3 +38,5 @@ def resnet(num_class, input_shape=(2600, 1)):
     model.compile(optimizer=Adam(lr=1e-3), loss=sparse_categorical_crossentropy,
                   metrics=['acc'])
     return model
+
+

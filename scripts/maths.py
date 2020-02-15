@@ -91,6 +91,24 @@ def average_bin_faster(y, num_bins):
     return y1
 
 
+def median_bin_faster(y, num_bins):
+    num_cols = len(y[0])
+    num_each_bin = num_cols // num_bins
+    total = num_bins * num_each_bin
+    y1, y2 = y[:, :total], y[:, total:]
+    y1 = y1.reshape(len(y1), num_bins, num_each_bin)
+
+    y1 = np.median(y1, axis=-1).reshape(len(y), -1)
+    if total != num_cols:
+        y2 = np.median(y2, axis=1)
+        y1[:, -1] = (y1[:, -1] + y2)/2
+
+    # normalize
+    y1 -= np.median(y1, axis=1)[:, None]
+    y1 /= (np.max(np.abs(y1), axis=1)[:, None] + 1e-8)
+    return y1
+
+
 def change_zero_to_mean(arr2d):
     arr1d = np.ravel(arr2d)
     abs_arr1d = np.abs(arr1d)
@@ -103,7 +121,29 @@ def change_zero_to_mean(arr2d):
 def remove_sharp(arr2d, threshold=5):
     std = np.std(arr2d, axis=1)[:, None]
     mean = np.mean(arr2d, axis=1)[:, None]
+    threshold *= std
     arr2d -= mean
     diff = np.abs(arr2d)
-    res = np.where(diff > threshold * std, 0, arr2d)
+    res = np.where(diff > threshold, 0, arr2d)
     return res + mean
+
+
+def find_bad(arr2d, label, return_bad=False):
+    """
+    find the bad spectral in arr2d
+    returns: 
+        if return_bad:
+            good_spectra, bad_spectra
+        else:
+            good_spectra, good_labels
+            good_labels means corresponding labels of good_spectra
+    """
+    diff = arr2d[:, 1:] - arr2d[:, :-1]
+
+    #  if more than 800 pairs of similar neighbor points, remove the dataset
+    row_mask = np.sum(np.abs(diff) < 1e-8, axis=1) < 800  
+
+    if return_bad:
+        return arr2d[row_mask], arr2d[np.logical_not(row_mask)]
+    else:
+        return arr2d[row_mask], label[row_mask]
