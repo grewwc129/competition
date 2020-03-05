@@ -1,6 +1,45 @@
 import numpy as np
 from .config import config
 import keras.backend as K
+from .config import config
+from .maths import *
+from .general_utils import *
+
+
+def set_bad_to_qso(spectra2d, pred_cls_1d):
+    _, bad_mask = find_bad(spectra2d, label=None,
+                           num_consecutive=2000, return_mask=True)
+    # print("here", bad_mask)
+    pred_cls_1d[bad_mask] = config.class_label['qso']
+    return None
+
+
+def get_predict_cls(pred2d, target_name=None, threshold=None):
+    """
+    the main purpose of this function is to lower "qso" threshold
+    there are 7248 qso in the validation set, however, we missed 450
+    """
+    pred_cls_normal = np.max(pred2d, axis=1)
+    predicted_as_qso_mask = (pred_cls_normal == config.class_label[target_name])
+
+
+def get_precision(ytrue, pred, dealwith_badspectra=False, spectra2d=None):
+    # assert len(ytrue) == len(pred) and len(ytrue) > 0
+    if isinstance(ytrue[0], str):
+        ytrue = encode_names(ytrue)
+
+    pred_cls = np.argmax(pred, axis=1)
+    
+    if dealwith_badspectra:
+        if spectra2d is None:
+            raise Exception("miss the original spectra")
+    
+        if len(spectra2d.shape) == 3:
+            spectra2d = spectra2d.reshape(*spectra2d.shape[:-1])
+
+        set_bad_to_qso(spectra2d, pred_cls)
+
+    return sum(ytrue == pred_cls) / len(pred)
 
 
 def f1(y_true, y_pred):
@@ -25,7 +64,7 @@ def f1(y_true, y_pred):
     f1_galaxy = f1_helper(y_true, pred_cls, 'galaxy')
     f1_qso = f1_helper(y_true, pred_cls, 'qso')
 
-    return (f1_star + f1_galaxy+f1_qso)/3
+    return (f1_star + f1_galaxy + f1_qso)/3
 
 
 # has some unknown bug now

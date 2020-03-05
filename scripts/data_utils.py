@@ -2,8 +2,9 @@ import pandas as pd
 from .config import config
 from .maths import *
 import numpy as np
-
-class_label = config.class_label  # possibly faster
+from .general_utils import drop_non_numeric, encode_name
+from .csv_to_h5 import read_h5
+import gc 
 
 
 def standardize(arr2d, minmax=True):
@@ -16,11 +17,9 @@ def standardize(arr2d, minmax=True):
     return (arr2d - mean) / (std+1e-8)
 
 
-def encode_name(name):
-    return class_label[name]
-
-
-def trim_df(arr2d, use_bin=True, remove_endpoints=True, flatten=True, remove_bad=True):
+def load_training(filename: str = config.train_file_name,
+                  use_bin=True,
+                  remove_endpoints=True):
     """
     use_bin:
         if True, use "average_bin" function
@@ -28,38 +27,42 @@ def trim_df(arr2d, use_bin=True, remove_endpoints=True, flatten=True, remove_bad
         train_x: (None, Dim, 1)
         train_y: (Dim, )
     """
-    num_remove_begin = 100
-    num_remove_end = 50
-    # first remove id, id is the last column
-    arr2d = arr2d.iloc[:, :-1]
-    # because the data label is wrong
-    arr2d = arr2d[arr2d.iloc[:, -1] != "answer"]
-    # then split "answer" and other columns
-    # "answer" is the last second column, the last one for now
-    train_x = arr2d.iloc[:, :-1].astype(np.float).values
-    # train_x = standardize(train_x, minmax=False).values
+    arr2d = read_h5(filename)
+    
+    num_remove_begin = 50
+    num_remove_end = 1
 
-    train_y = arr2d.iloc[:, -1].apply(encode_name).astype(np.int8).values
+    train_x = arr2d[:, :-1]
+    train_y = arr2d[:, -1]
 
+    del arr2d
+    gc.collect()
+
+    #################################################################
+    #################################################################
+    #  preprocessing                                                #
+    #################################################################
     if remove_endpoints:
         train_x = train_x[:, num_remove_begin:-num_remove_end]
+    # remove bad points
+    # train_x, train_y = find_bad(train_x, train_y, num_consecutive=2000)
 
-    if remove_bad:
-        train_x, train_y = find_bad(train_x, train_y, return_bad=False)
-
-    if flatten:
-        train_x = remove_sharp(train_x, threshold=10)
-        # train_x = change_zero_to_mean(train_x)
-
+    train_x = remove_badpoints_and_normalize(train_x)
     if use_bin:
-        # train_x = average_bin_faster(train_x, num_bins=config.num_bins)
-        train_x = median_bin_faster(train_x, num_bins=config.num_bins)
+        train_x = average_bin_faster(train_x, num_bins=config.num_bins)
+
+    gc.collect()
+    #################################################################
+    #################################################################
 
     train_x = train_x.reshape(*train_x.shape, 1)
+
+    gc.collect()
+    
     return train_x, train_y
 
 
-def trim_df_binary(arr2d, target_name, use_bin=True, remove_begin=True, remove_end=True):
+def trim_df_binary(arr2d, target_name, use_bin=True, remove_endpoints=True):
     """
     use_bin:
         if True, use "average_bin" function
@@ -67,6 +70,9 @@ def trim_df_binary(arr2d, target_name, use_bin=True, remove_begin=True, remove_e
         train_x: (None, 2600, 1)
         train_y: (2600, )
     """
+    num_remove_begin = 50
+    num_remove_end = 1
+
     def encode_name(name):
         return 1 if name == target_name else 0
     # first remove id, id is the last column
@@ -76,18 +82,19 @@ def trim_df_binary(arr2d, target_name, use_bin=True, remove_begin=True, remove_e
     # then split "answer" and other columns
     # "answer" is the last second column, the last one for now
     train_x = arr2d.iloc[:, :-1].astype(np.float).values
-    # train_x = standardize(train_x, minmax=False).values
 
     train_y = arr2d.iloc[:, -1].apply(encode_name).astype(np.int8).values
 
-    if remove_begin:
-        train_x = train_x[:, num_remove_begin:]
-
-    if remove_end:
-        train_x = train_x[:, :-num_remove_end]
+    if remove_endpoints:
+        train_x = train_x[:, num_remove_begin:-num_remove_end]
 
     if use_bin:
-        train_x = average_bin_faster(train_x, num_bins=config.num_bins)
+        train_x = median_bin_faster(train_x, num_bins=config.num_bins)
+
+    # remove bad points
+    train_x, train_y = find_bad(train_x, train_y, num_consecutive=2000)
+
+    train_x = remove_badpoints_and_normalize(train_x)
 
     train_x = train_x.reshape(*train_x.shape, 1)
 

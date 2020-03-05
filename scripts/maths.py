@@ -1,6 +1,6 @@
 import numpy as np
 from .management_utils import *
-
+import gc 
 
 # @Deperacated
 def median_bin(x, y, num_bins, bin_width=None, normalize=True):
@@ -75,12 +75,17 @@ def average_bin(x, y, num_bins, bin_width=None, normalize=True):
 
 def average_bin_faster(y, num_bins):
     num_cols = len(y[0])
+    num_rows = len(y)
     num_each_bin = num_cols // num_bins
     total = num_bins * num_each_bin
     y1, y2 = y[:, :total], y[:, total:]
+
+    del y 
+    gc.collect()
+
     y1 = y1.reshape(len(y1), num_bins, num_each_bin)
 
-    y1 = np.mean(y1, axis=-1).reshape(len(y), -1)
+    y1 = np.mean(y1, axis=-1).reshape(num_rows, -1)
     if total != num_cols:
         y2 = np.mean(y2, axis=1)
         y1[:, -1] = (y1[:, -1] + y2)/2
@@ -118,7 +123,10 @@ def change_zero_to_mean(arr2d):
     return arr2d
 
 
-def remove_sharp(arr2d, threshold=5):
+def remove_sharp(arr2d, threshold=3):
+    """
+    bad
+    """
     std = np.std(arr2d, axis=1)[:, None]
     mean = np.mean(arr2d, axis=1)[:, None]
     threshold *= std
@@ -128,7 +136,7 @@ def remove_sharp(arr2d, threshold=5):
     return res + mean
 
 
-def find_bad(arr2d, label, return_bad=False):
+def find_bad(arr2d, label, return_mask=False, num_consecutive=2000):
     """
     find the bad spectral in arr2d
     returns: 
@@ -138,12 +146,44 @@ def find_bad(arr2d, label, return_bad=False):
             good_spectra, good_labels
             good_labels means corresponding labels of good_spectra
     """
+
     diff = arr2d[:, 1:] - arr2d[:, :-1]
 
-    #  if more than 800 pairs of similar neighbor points, remove the dataset
-    row_mask = np.sum(np.abs(diff) < 1e-8, axis=1) < 800  
+    #  if more than 2000 pairs of similar neighbor points, remove the dataset
+    good_mask = np.sum(np.abs(diff) < 1e-8, axis=1) < num_consecutive
 
-    if return_bad:
-        return arr2d[row_mask], arr2d[np.logical_not(row_mask)]
+    if return_mask:
+        return arr2d[good_mask], np.logical_not(good_mask)
     else:
-        return arr2d[row_mask], label[row_mask]
+        return arr2d[good_mask], label[good_mask]
+
+
+def remove_badpoints_and_normalize(arr2d):
+    """
+    @Author: Yushan Li
+    """
+    mean = np.mean(arr2d, axis=1, keepdims=True)
+    std = np.std(arr2d, axis=1, ddof=1, keepdims=True)
+    std_20 = std*20
+    arr2d = np.where((arr2d > mean+std_20) | (arr2d < mean-std_20), mean, arr2d)
+
+    gc.collect()
+
+    mean = np.mean(arr2d, axis=1, keepdims=True)
+    std = np.std(arr2d, axis=1, ddof=1, keepdims=True)
+    std_5 = std*5
+
+    del std 
+    gc.collect()
+
+    lo, hi = mean - std_5, mean + std_5
+    arr2d = np.where(arr2d > hi, hi, arr2d)
+    arr2d = np.where(arr2d < lo, lo, arr2d)
+    arr2d = np.where(arr2d == 0, mean, arr2d)
+
+    gc.collect()
+
+    min_val, max_val = np.min(arr2d, axis=1, keepdims=True), np.max(
+        arr2d, axis=1, keepdims=True)
+    arr2d = (arr2d - min_val) / (max_val - min_val + 1e-8)
+    return arr2d - np.median(arr2d, axis=1, keepdims=True)
